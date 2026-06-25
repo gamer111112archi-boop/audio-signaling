@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>🎧 Studio Stream · Capture System Audio</title>
+    <title>🎧 Studio Stream · System Audio</title>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js">
     </script>
     <style>
@@ -56,7 +56,6 @@
             padding-left: 14px;
         }
 
-        /* ─── Cards ─── */
         .card {
             background: #1e262c;
             border-radius: 18px;
@@ -78,7 +77,6 @@
             min-width: 130px;
         }
 
-        /* ─── Buttons ─── */
         button {
             padding: 14px 20px;
             border: none;
@@ -104,7 +102,6 @@
         }
         button.primary:hover {
             background: #3aaceb;
-            box-shadow: 0 6px 16px rgba(45, 156, 219, 0.35);
         }
         button.success {
             background: #27ae60;
@@ -128,7 +125,6 @@
             filter: grayscale(0.6);
         }
 
-        /* ─── Password Overlay ─── */
         .password-box {
             background: #11181e;
             border-radius: 14px;
@@ -175,7 +171,6 @@
             display: block;
         }
 
-        /* ─── Status / Console ─── */
         #status-bar {
             display: flex;
             align-items: center;
@@ -213,14 +208,13 @@
             font-weight: 450;
         }
 
-        /* ─── Log Console ─── */
         .log-console {
             background: #070a0c;
             border-radius: 14px;
             padding: 12px 16px;
             max-height: 200px;
             overflow-y: auto;
-            font-family: 'JetBrains Mono', 'Fira Code', monospace;
+            font-family: 'JetBrains Mono', monospace;
             font-size: 12.5px;
             line-height: 1.7;
             border: 1px solid #1f282f;
@@ -252,7 +246,6 @@
             color: #ff6b6b;
         }
 
-        /* ─── Listener Audio ─── */
         audio {
             width: 100%;
             border-radius: 12px;
@@ -264,7 +257,6 @@
             display: block;
         }
 
-        /* ─── Stats ─── */
         .stats {
             display: flex;
             gap: 24px;
@@ -282,7 +274,6 @@
             font-weight: 600;
         }
 
-        /* ─── Responsive ─── */
         @media (max-width: 500px) {
             .container {
                 padding: 20px 16px;
@@ -301,7 +292,6 @@
                 margin-left: 0;
             }
         }
-
         .log-console::-webkit-scrollbar {
             width: 4px;
         }
@@ -312,22 +302,60 @@
             background: #2d3a44;
             border-radius: 10px;
         }
+
+        .error-banner {
+            background: #2c1010;
+            border: 1px solid #e74c3c;
+            border-radius: 12px;
+            padding: 16px;
+            margin: 12px 0;
+            display: none;
+        }
+        .error-banner.show {
+            display: block;
+        }
+        .error-banner strong {
+            color: #ff6b6b;
+            display: block;
+            margin-bottom: 4px;
+        }
+        .error-banner p {
+            font-size: 14px;
+            color: #cfa0a0;
+        }
+        .error-banner code {
+            background: #1a0a0a;
+            padding: 2px 8px;
+            border-radius: 6px;
+            color: #ff9999;
+        }
+        .btn-retry {
+            background: #e67e22;
+            color: #fff;
+            border: none;
+            padding: 8px 18px;
+            border-radius: 8px;
+            font-weight: 600;
+            margin-top: 10px;
+            cursor: pointer;
+        }
     </style>
 </head>
 <body>
 
     <div class="container" id="app">
         <header>
-            <h1>
-                🎵 Studio Stream
-                <small>v2.1 · System Audio</small>
-            </h1>
-            <div class="subtitle">
-                Captures audio from your device (YT Music, Spotify, etc.) · Zero servers
-            </div>
+            <h1>🎵 Studio Stream <small>v2.2 · Fix</small></h1>
+            <div class="subtitle">Captures system audio (YT Music, Spotify) · Zero servers</div>
         </header>
 
-        <!-- ─── MAIN ACTIONS ─── -->
+        <!-- SECURITY ERROR BANNER -->
+        <div class="error-banner" id="https-warning">
+            <strong>🔒 HTTPS Required</strong>
+            <p>Your browser is blocking screen capture because this page is not served over <code>https://</code> or <code>localhost</code>.</p>
+            <p><strong>Fix:</strong> Use <a href="https://www.npmjs.com/package/serve" style="color:#2d9cdb;">`npx serve`</a>, <a href="https://marketplace.visualstudio.com/items?itemName=ritwickdey.LiveServer" style="color:#2d9cdb;">VS Code Live Server</a>, or host on <a href="https://pages.github.com/" style="color:#2d9cdb;">GitHub Pages</a>.</p>
+        </div>
+
         <div class="card highlight" id="action-card">
             <div class="flex-row">
                 <button class="primary" id="btn-broadcast">🎤 Start Broadcast</button>
@@ -335,16 +363,15 @@
             </div>
 
             <div class="password-box" id="password-box">
-                <label>🔑 Broadcaster authorization required</label>
+                <label>🔑 Broadcaster authorization</label>
                 <div class="input-group">
                     <input type="password" id="password-input" placeholder="Enter password" autocomplete="off" />
                     <button class="success" id="btn-auth" style="flex:0 0 auto; padding:12px 24px;">Unlock</button>
                 </div>
-                <div class="error-msg" id="auth-error">❌ Incorrect password. Try again.</div>
+                <div class="error-msg" id="auth-error">❌ Incorrect password.</div>
             </div>
         </div>
 
-        <!-- ─── STATUS & CONTROLS ─── -->
         <div id="controls-panel" style="display:none;">
             <div class="card">
                 <div id="status-bar">
@@ -357,15 +384,15 @@
                     <span>🔗 Room: <span class="num" id="room-display">global-music-room</span></span>
                 </div>
 
-                <div style="display:flex; gap:10px; margin-top:12px;">
-                    <button class="danger" id="btn-stop" style="flex:1;">⏹ Stop Session</button>
+                <div style="display:flex; gap:10px; margin-top:12px; flex-wrap:wrap;">
+                    <button class="danger" id="btn-stop" style="flex:1;">⏹ Stop</button>
+                    <button class="outline" id="btn-retry" style="flex:1; display:none;">🔄 Retry</button>
                 </div>
 
                 <audio id="remote-audio" controls></audio>
             </div>
         </div>
 
-        <!-- ─── DETAILED LOG CONSOLE ─── -->
         <div class="card" style="padding:16px 18px;">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
                 <span style="font-weight:600; font-size:13px; color:#7e8c99;">📋 Diagnostic Log</span>
@@ -377,21 +404,16 @@
         </div>
 
         <div style="font-size:12px; color:#3d4a55; text-align:center; margin-top:16px;">
-            PeerJS Cloud · up to 50 concurrent peers
+            PeerJS Cloud · up to 50 peers
         </div>
     </div>
 
     <script>
         // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-        //  CONFIGURATION
-        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
         const ROOM_NAME = 'global-music-room';
         const AUTH_PASSWORD = '667788';
         const PEERJS_CONFIG = { host: '0.peerjs.com', port: 443, secure: true };
 
-        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-        //  STATE
-        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
         let peer = null;
         let localStream = null;
         let isBroadcaster = false;
@@ -400,13 +422,12 @@
         let isCleaningUp = false;
 
         // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-        //  DOM REFS
-        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
         const $ = id => document.getElementById(id);
         const btnBroadcast = $('btn-broadcast');
         const btnListen = $('btn-listen');
         const btnAuth = $('btn-auth');
         const btnStop = $('btn-stop');
+        const btnRetry = $('btn-retry');
         const btnClearLogs = $('btn-clear-logs');
         const passwordBox = $('password-box');
         const passwordInput = $('password-input');
@@ -418,9 +439,10 @@
         const roomDisplay = $('room-display');
         const remoteAudio = $('remote-audio');
         const logConsole = $('log-console');
+        const httpsWarning = $('https-warning');
 
         // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-        //  LOGGING SYSTEM
+        //  LOGGING
         // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
         function addLog(message, type = 'info') {
             const entry = document.createElement('div');
@@ -462,8 +484,7 @@
         }
 
         function updateListenerCount() {
-            const count = Object.keys(connections).length;
-            listenerCountEl.textContent = count;
+            listenerCountEl.textContent = Object.keys(connections).length;
         }
 
         function resetUI() {
@@ -476,7 +497,15 @@
             btnBroadcast.disabled = false;
             btnListen.disabled = false;
             btnStop.style.display = 'none';
+            btnRetry.style.display = 'none';
             roomDisplay.textContent = ROOM_NAME;
+        }
+
+        function enableRetry() {
+            btnRetry.style.display = 'flex';
+            btnRetry.textContent = '🔄 Retry Broadcast';
+            btnBroadcast.disabled = false;
+            btnListen.disabled = false;
         }
 
         // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -510,18 +539,26 @@
         }
 
         // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-        //  BROADCASTER LOGIC (Captures System Audio)
+        //  BROADCASTER
         // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
         async function startBroadcaster() {
+            // --- 1. Check HTTPS ---
+            if (!window.isSecureContext) {
+                httpsWarning.classList.add('show');
+                addLog('❌ BLOCKED: Page must be served over HTTPS or localhost.', 'error');
+                setIndicator('error', 'HTTPS required. See warning above.');
+                return;
+            } else {
+                httpsWarning.classList.remove('show');
+            }
+
             fullCleanup();
             addLog('🚀 Initializing broadcaster...', 'info');
 
-            // Detect device for better instructions
             const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
 
-            // 1. Check browser support
             if (!navigator.mediaDevices || !navigator.mediaDevices.getDisplayMedia) {
-                addLog('❌ getDisplayMedia() not supported. Please use Chrome/Edge.', 'error');
+                addLog('❌ getDisplayMedia() not supported. Use Chrome/Edge.', 'error');
                 setIndicator('error', 'Browser not compatible.');
                 return;
             }
@@ -529,105 +566,123 @@
             btnBroadcast.disabled = true;
             btnListen.disabled = true;
             showControls(true);
+            btnRetry.style.display = 'none';
 
-            // Provide platform-specific instructions
             if (isMobile) {
-                addLog('📱 Android detected. When the prompt appears:', 'warn');
-                addLog('  1. Select "Entire screen" or "Share screen".', 'warn');
-                addLog('  ⚠️ 2. CRUCIAL: Toggle ON the "Share audio" switch at the bottom.', 'warn');
-                addLog('  3. Start sharing. The YT Music audio will be captured.', 'warn');
+                addLog('📱 Android: When prompt appears, select "Entire screen" and TOGGLE ON "Share audio".', 'warn');
                 setIndicator('busy', 'Waiting for screen selection...');
             } else {
-                addLog('💻 Desktop detected. When the prompt appears:', 'warn');
-                addLog('  ⚠️ Select the YT Music tab (or screen) and CHECK "Share audio".', 'warn');
-                setIndicator('busy', 'Select a tab/screen to share...');
+                addLog('💻 Desktop: Select a tab/screen and CHECK "Share audio".', 'warn');
+                setIndicator('busy', 'Select a tab to share...');
             }
 
             try {
-                // 2. Capture screen + system audio
+                // --- 2. Capture ---
                 localStream = await navigator.mediaDevices.getDisplayMedia({
                     audio: true,
                     video: true
                 });
 
-                // 3. Verify audio track exists
                 const audioTracks = localStream.getAudioTracks();
                 if (audioTracks.length === 0) {
-                    throw new Error('No audio track captured. Did you enable "Share audio" in the picker?');
+                    throw new Error('No audio track. Did you enable "Share audio"?');
                 }
-                addLog(`✅ Captured ${audioTracks.length} audio track(s). System audio is being routed.`, 'success');
+                addLog(`✅ Captured ${audioTracks.length} audio track(s).`, 'success');
 
-                // 4. Connect to PeerJS Cloud
+                // --- 3. PeerJS ---
                 addLog(`🔗 Connecting to PeerJS (room: "${ROOM_NAME}")...`, 'info');
                 peer = new Peer(ROOM_NAME, PEERJS_CONFIG);
 
                 peer.on('open', (id) => {
                     isBroadcaster = true;
-                    addLog(`✅ Peer ID established: "${id}"`, 'success');
-                    setIndicator('online', '🎤 Broadcasting live! Your device audio is streaming.');
+                    addLog(`✅ Peer ID: "${id}"`, 'success');
+                    setIndicator('online', '🎤 Broadcasting live!');
                     btnStop.style.display = 'flex';
                     updateListenerCount();
                 });
 
-                // 5. Handle incoming listener calls
                 peer.on('call', (call) => {
-                    addLog(`📞 New listener connecting (${call.peer})...`, 'info');
+                    addLog(`📞 New listener (${call.peer})...`, 'info');
                     try {
                         call.answer(localStream);
                         connections[call.peer] = call;
                         updateListenerCount();
-                        addLog(`✅ Listener connected. Total: ${Object.keys(connections).length}`, 'success');
+                        addLog(`✅ Connected. Total: ${Object.keys(connections).length}`, 'success');
                         call.on('close', () => {
-                            addLog(`👋 Listener ${call.peer} disconnected.`, 'warn');
+                            addLog(`👋 Listener ${call.peer} left.`, 'warn');
                             delete connections[call.peer];
                             updateListenerCount();
                         });
                     } catch (err) {
-                        addLog(`❌ Failed to answer call: ${err.message}`, 'error');
+                        addLog(`❌ Answer failed: ${err.message}`, 'error');
                     }
                 });
 
-                // 6. Error handling
                 peer.on('error', (err) => {
                     if (err.type === 'unavailable-id') {
-                        addLog(`❌ Room "${ROOM_NAME}" already taken by another broadcaster.`, 'error');
-                        setIndicator('error', 'Someone else is broadcasting.');
+                        addLog(`❌ Room "${ROOM_NAME}" already taken!`, 'error');
+                        setIndicator('error', 'Another broadcaster is live.');
                         fullCleanup();
+                        enableRetry();
                     } else {
-                        addLog(`⚠️ PeerJS error: ${err.message} (${err.type})`, 'error');
+                        addLog(`⚠️ Peer error: ${err.message}`, 'error');
                     }
                 });
 
-                // 7. Auto-stop if user closes the share picker
                 const videoTrack = localStream.getVideoTracks()[0];
                 if (videoTrack) {
                     videoTrack.onended = () => {
-                        addLog('⏹ Screen capture was stopped by the user.', 'warn');
+                        addLog('⏹ User stopped screen sharing.', 'warn');
                         setIndicator('error', 'Capture stopped.');
                         fullCleanup();
+                        enableRetry();
                     };
                 }
 
             } catch (err) {
-                addLog(`❌ Broadcast failed: ${err.message}`, 'error');
-                setIndicator('error', `Error: ${err.message}`);
-                fullCleanup();
+                // --- 4. Handle errors gracefully ---
+                let friendlyMsg = err.message;
+                if (err.name === 'NotAllowedError' || err.name === 'SecurityError') {
+                    friendlyMsg = 'Permission denied or insecure context. Ensure HTTPS.';
+                } else if (err.name === 'NotFoundError') {
+                    friendlyMsg = 'No audio source found. Did you enable "Share audio"?';
+                }
+                addLog(`❌ Broadcast failed: ${friendlyMsg}`, 'error');
+                setIndicator('error', friendlyMsg);
+                // Keep controls visible so user sees the error
+                // Re-enable the retry button
+                enableRetry();
+                // Clean up partial resources
+                if (localStream) {
+                    localStream.getTracks().forEach(t => t.stop());
+                    localStream = null;
+                }
+                if (peer) { try { peer.destroy(); } catch (e) {} }
+                peer = null;
+                isBroadcaster = false;
+                btnStop.style.display = 'none';
             }
         }
 
         // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-        //  LISTENER LOGIC
+        //  LISTENER
         // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
         function startListener() {
+            if (!window.isSecureContext) {
+                httpsWarning.classList.add('show');
+                addLog('❌ BLOCKED: HTTPS required for WebRTC.', 'error');
+                return;
+            } else {
+                httpsWarning.classList.remove('show');
+            }
+
             fullCleanup();
             addLog('🎧 Initializing listener...', 'info');
-
             btnBroadcast.disabled = true;
             btnListen.disabled = true;
             showControls(true);
-            setIndicator('busy', 'Connecting to broadcaster...');
+            setIndicator('busy', 'Connecting...');
 
-            // Silent dummy stream for the outgoing call
             const ctx = new(window.AudioContext || window.webkitAudioContext)();
             const osc = ctx.createOscillator();
             const gain = ctx.createGain();
@@ -640,16 +695,14 @@
             const silentStream = dest.stream;
 
             peer = new Peer(PEERJS_CONFIG);
-
             peer.on('open', (id) => {
-                addLog(`✅ Listener peer ready (${id}). Calling broadcaster...`, 'success');
+                addLog(`✅ Listener ready (${id}). Calling...`, 'success');
                 setIndicator('busy', 'Calling broadcaster...');
-
                 const call = peer.call(ROOM_NAME, silentStream);
                 listenerCall = call;
 
                 call.on('stream', (remoteStream) => {
-                    addLog('🎵 Audio stream received! Playing now.', 'success');
+                    addLog('🎵 Audio received!', 'success');
                     setIndicator('online', '🎧 Listening live!');
                     remoteAudio.srcObject = remoteStream;
                     remoteAudio.classList.add('show');
@@ -660,30 +713,35 @@
                     addLog(`❌ Call error: ${err.message}`, 'error');
                     setIndicator('error', 'Call failed.');
                     fullCleanup();
+                    btnBroadcast.disabled = false;
+                    btnListen.disabled = false;
                 });
 
                 call.on('close', () => {
-                    addLog('⏹ Broadcaster ended the stream.', 'warn');
+                    addLog('⏹ Broadcaster ended.', 'warn');
                     setIndicator('error', 'Disconnected.');
                     fullCleanup();
+                    btnBroadcast.disabled = false;
+                    btnListen.disabled = false;
                 });
             });
 
             peer.on('error', (err) => {
                 if (err.type === 'peer-unavailable') {
-                    addLog(`❌ Broadcaster not found. Is anyone streaming in "${ROOM_NAME}"?`, 'error');
-                    setIndicator('error', 'No active broadcaster.');
+                    addLog(`❌ No broadcaster in "${ROOM_NAME}".`, 'error');
+                    setIndicator('error', 'No active stream.');
                 } else {
                     addLog(`⚠️ Peer error: ${err.message}`, 'error');
                 }
                 fullCleanup();
+                btnBroadcast.disabled = false;
+                btnListen.disabled = false;
             });
         }
 
         // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
         //  EVENT BINDINGS
         // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
         btnBroadcast.addEventListener('click', () => {
             passwordBox.classList.add('show');
             authError.classList.remove('show');
@@ -693,8 +751,7 @@
         });
 
         btnAuth.addEventListener('click', () => {
-            const entered = passwordInput.value;
-            if (entered === AUTH_PASSWORD) {
+            if (passwordInput.value === AUTH_PASSWORD) {
                 authError.classList.remove('show');
                 passwordBox.classList.remove('show');
                 btnBroadcast.disabled = false;
@@ -703,7 +760,7 @@
                 authError.classList.add('show');
                 passwordInput.value = '';
                 passwordInput.focus();
-                addLog('❌ Failed auth attempt (wrong password).', 'error');
+                addLog('❌ Wrong password.', 'error');
             }
         });
 
@@ -718,8 +775,15 @@
         });
 
         btnStop.addEventListener('click', () => {
-            addLog('⏹ Manual stop requested.', 'warn');
+            addLog('⏹ Stopped.', 'warn');
             fullCleanup();
+            btnBroadcast.disabled = false;
+            btnListen.disabled = false;
+        });
+
+        btnRetry.addEventListener('click', () => {
+            btnRetry.style.display = 'none';
+            startBroadcaster();
         });
 
         window.addEventListener('beforeunload', () => {
@@ -732,9 +796,15 @@
         // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
         resetUI();
         roomDisplay.textContent = ROOM_NAME;
-        addLog(`🟢 Application ready. Room: "${ROOM_NAME}"`, 'info');
+        addLog(`🟢 Ready. Room: "${ROOM_NAME}"`, 'info');
         addLog(`ℹ️ Broadcaster password: "${AUTH_PASSWORD}"`, 'info');
-        addLog(`📱 Works on Mobile & Desktop. Captures system audio (YT Music app, etc.).`, 'success');
+
+        if (!window.isSecureContext) {
+            httpsWarning.classList.add('show');
+            addLog('⚠️ WARNING: Page is not secure (HTTP). Screen capture will be blocked.', 'error');
+        } else {
+            addLog('✅ Secure context (HTTPS/localhost) detected.', 'success');
+        }
     </script>
 </body>
 </html>
