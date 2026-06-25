@@ -1,266 +1,740 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>🎵 Live Audio Share</title>
-  <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
-  <style>
-    * { box-sizing: border-box; }
-    body { font-family: system-ui, sans-serif; max-width: 480px; margin: 40px auto; padding: 20px; background: #0f0f0f; color: #eee; }
-    .card { background: #1e1e1e; padding: 24px; border-radius: 16px; margin-bottom: 20px; border: 1px solid #333; }
-    h1 { margin-top: 0; font-size: 24px; text-align: center; }
-    .hidden { display: none; }
-    input, button { width: 100%; padding: 14px; margin: 8px 0; border-radius: 10px; border: none; font-size: 16px; }
-    input { background: #2a2a2a; color: #fff; }
-    button { background: #1a73e8; color: white; font-weight: bold; cursor: pointer; transition: 0.2s; }
-    button:active { transform: scale(0.97); }
-    button.danger { background: #d32f2f; }
-    button.outline { background: transparent; border: 1px solid #555; }
-    .flex { display: flex; gap: 10px; }
-    .flex button { width: 50%; }
-    #status { padding: 12px; background: #2a2a2a; border-radius: 10px; margin-top: 12px; font-size: 14px; word-break: break-all; }
-    #listener-count { font-size: 14px; color: #8ab4f8; margin-top: 8px; }
-    audio { width: 100%; margin-top: 12px; border-radius: 10px; }
-    .password-box { background: #252525; padding: 16px; border-radius: 12px; margin-top: 12px; border: 1px solid #444; }
-    .password-box input { background: #333; }
-    .error { color: #ff6b6b; font-size: 14px; margin-top: 8px; }
-  </style>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>🎧 Studio Stream · Capture System Audio</title>
+    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js">
+    </script>
+    <style>
+        /* ─── Reset & Base ─── */
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #0b0d0f;
+            color: #e8edf2;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+        .container {
+            max-width: 640px;
+            width: 100%;
+            background: #14181c;
+            border-radius: 32px;
+            padding: 32px 28px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.8);
+            border: 1px solid #2a3138;
+        }
+        h1 {
+            font-size: 28px;
+            font-weight: 700;
+            letter-spacing: -0.5px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 4px;
+        }
+        h1 small {
+            font-size: 14px;
+            font-weight: 400;
+            color: #7e8c99;
+            letter-spacing: 0;
+            margin-left: auto;
+        }
+        .subtitle {
+            color: #7e8c99;
+            font-size: 14px;
+            margin-bottom: 28px;
+            border-left: 3px solid #2d9cdb;
+            padding-left: 14px;
+        }
+
+        /* ─── Cards ─── */
+        .card {
+            background: #1e262c;
+            border-radius: 18px;
+            padding: 22px 24px;
+            margin-bottom: 18px;
+            border: 1px solid #2b343c;
+            transition: border 0.2s;
+        }
+        .card.highlight {
+            border-color: #2d9cdb;
+        }
+        .flex-row {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+        .flex-row button {
+            flex: 1;
+            min-width: 130px;
+        }
+
+        /* ─── Buttons ─── */
+        button {
+            padding: 14px 20px;
+            border: none;
+            border-radius: 14px;
+            font-weight: 600;
+            font-size: 15px;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            background: #2d3a44;
+            color: #b0c4d4;
+        }
+        button:active {
+            transform: scale(0.96);
+        }
+        button.primary {
+            background: #2d9cdb;
+            color: #fff;
+            box-shadow: 0 4px 12px rgba(45, 156, 219, 0.25);
+        }
+        button.primary:hover {
+            background: #3aaceb;
+            box-shadow: 0 6px 16px rgba(45, 156, 219, 0.35);
+        }
+        button.success {
+            background: #27ae60;
+            color: #fff;
+        }
+        button.danger {
+            background: #e74c3c;
+            color: #fff;
+        }
+        button.outline {
+            background: transparent;
+            border: 1.5px solid #3d4a55;
+        }
+        button.outline:hover {
+            border-color: #5f7485;
+            background: #1e262c;
+        }
+        button:disabled {
+            opacity: 0.4;
+            pointer-events: none;
+            filter: grayscale(0.6);
+        }
+
+        /* ─── Password Overlay ─── */
+        .password-box {
+            background: #11181e;
+            border-radius: 14px;
+            padding: 18px 20px;
+            margin-top: 14px;
+            border: 1px solid #2d3a44;
+            display: none;
+        }
+        .password-box.show {
+            display: block;
+        }
+        .password-box label {
+            font-size: 13px;
+            font-weight: 500;
+            color: #a0b4c6;
+            display: block;
+            margin-bottom: 6px;
+        }
+        .password-box .input-group {
+            display: flex;
+            gap: 10px;
+        }
+        .password-box input {
+            flex: 1;
+            padding: 12px 16px;
+            border-radius: 12px;
+            border: 1px solid #2d3a44;
+            background: #0b0d0f;
+            color: #fff;
+            font-size: 16px;
+            letter-spacing: 2px;
+            outline: none;
+        }
+        .password-box input:focus {
+            border-color: #2d9cdb;
+        }
+        .password-box .error-msg {
+            color: #ff6b6b;
+            font-size: 13px;
+            margin-top: 8px;
+            display: none;
+        }
+        .password-box .error-msg.show {
+            display: block;
+        }
+
+        /* ─── Status / Console ─── */
+        #status-bar {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 10px 14px;
+            background: #0b0d0f;
+            border-radius: 12px;
+            margin: 12px 0 10px 0;
+            font-size: 14px;
+            border: 1px solid #222b33;
+            min-height: 52px;
+        }
+        .indicator {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            flex-shrink: 0;
+            background: #3d4a55;
+        }
+        .indicator.online {
+            background: #27ae60;
+            box-shadow: 0 0 10px rgba(39, 174, 96, 0.4);
+        }
+        .indicator.busy {
+            background: #f39c12;
+            box-shadow: 0 0 10px rgba(243, 156, 18, 0.3);
+        }
+        .indicator.error {
+            background: #e74c3c;
+            box-shadow: 0 0 10px rgba(231, 76, 60, 0.3);
+        }
+        #status-text {
+            flex: 1;
+            color: #cfdde9;
+            font-weight: 450;
+        }
+
+        /* ─── Log Console ─── */
+        .log-console {
+            background: #070a0c;
+            border-radius: 14px;
+            padding: 12px 16px;
+            max-height: 200px;
+            overflow-y: auto;
+            font-family: 'JetBrains Mono', 'Fira Code', monospace;
+            font-size: 12.5px;
+            line-height: 1.7;
+            border: 1px solid #1f282f;
+            margin-top: 6px;
+            color: #9aafbf;
+            scroll-behavior: smooth;
+        }
+        .log-console .log-entry {
+            padding: 1px 0;
+            border-bottom: 1px solid #121a20;
+        }
+        .log-console .log-entry:last-child {
+            border-bottom: none;
+        }
+        .log-entry .time {
+            color: #5a6f7e;
+            margin-right: 10px;
+        }
+        .log-entry .info {
+            color: #6ab0e6;
+        }
+        .log-entry .success {
+            color: #4cdb7b;
+        }
+        .log-entry .warn {
+            color: #f1c40f;
+        }
+        .log-entry .error {
+            color: #ff6b6b;
+        }
+
+        /* ─── Listener Audio ─── */
+        audio {
+            width: 100%;
+            border-radius: 12px;
+            margin-top: 12px;
+            background: #0b0d0f;
+            display: none;
+        }
+        audio.show {
+            display: block;
+        }
+
+        /* ─── Stats ─── */
+        .stats {
+            display: flex;
+            gap: 24px;
+            padding: 6px 0 2px 0;
+            font-size: 14px;
+            color: #7e8c99;
+        }
+        .stats span {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .stats .num {
+            color: #e8edf2;
+            font-weight: 600;
+        }
+
+        /* ─── Responsive ─── */
+        @media (max-width: 500px) {
+            .container {
+                padding: 20px 16px;
+            }
+            .flex-row button {
+                min-width: 100%;
+            }
+            .password-box .input-group {
+                flex-direction: column;
+            }
+            h1 {
+                font-size: 22px;
+                flex-wrap: wrap;
+            }
+            h1 small {
+                margin-left: 0;
+            }
+        }
+
+        .log-console::-webkit-scrollbar {
+            width: 4px;
+        }
+        .log-console::-webkit-scrollbar-track {
+            background: #070a0c;
+        }
+        .log-console::-webkit-scrollbar-thumb {
+            background: #2d3a44;
+            border-radius: 10px;
+        }
+    </style>
 </head>
 <body>
 
-  <h1>🎵 Live Audio Share</h1>
+    <div class="container" id="app">
+        <header>
+            <h1>
+                🎵 Studio Stream
+                <small>v2.1 · System Audio</small>
+            </h1>
+            <div class="subtitle">
+                Captures audio from your device (YT Music, Spotify, etc.) · Zero servers
+            </div>
+        </header>
 
-  <!-- Main Buttons -->
-  <div class="card" id="mode-select">
-    <div class="flex">
-      <button id="btn-broadcast">🎤 Start Streaming</button>
-      <button id="btn-listen" class="outline">🎧 Listen</button>
+        <!-- ─── MAIN ACTIONS ─── -->
+        <div class="card highlight" id="action-card">
+            <div class="flex-row">
+                <button class="primary" id="btn-broadcast">🎤 Start Broadcast</button>
+                <button class="outline" id="btn-listen">🎧 Listen</button>
+            </div>
+
+            <div class="password-box" id="password-box">
+                <label>🔑 Broadcaster authorization required</label>
+                <div class="input-group">
+                    <input type="password" id="password-input" placeholder="Enter password" autocomplete="off" />
+                    <button class="success" id="btn-auth" style="flex:0 0 auto; padding:12px 24px;">Unlock</button>
+                </div>
+                <div class="error-msg" id="auth-error">❌ Incorrect password. Try again.</div>
+            </div>
+        </div>
+
+        <!-- ─── STATUS & CONTROLS ─── -->
+        <div id="controls-panel" style="display:none;">
+            <div class="card">
+                <div id="status-bar">
+                    <span class="indicator" id="indicator"></span>
+                    <span id="status-text">Initializing…</span>
+                </div>
+
+                <div class="stats">
+                    <span>👥 Listeners: <span class="num" id="listener-count">0</span></span>
+                    <span>🔗 Room: <span class="num" id="room-display">global-music-room</span></span>
+                </div>
+
+                <div style="display:flex; gap:10px; margin-top:12px;">
+                    <button class="danger" id="btn-stop" style="flex:1;">⏹ Stop Session</button>
+                </div>
+
+                <audio id="remote-audio" controls></audio>
+            </div>
+        </div>
+
+        <!-- ─── DETAILED LOG CONSOLE ─── -->
+        <div class="card" style="padding:16px 18px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+                <span style="font-weight:600; font-size:13px; color:#7e8c99;">📋 Diagnostic Log</span>
+                <button id="btn-clear-logs" style="background:transparent; border:none; color:#5a6f7e; font-size:12px; padding:4px 10px; cursor:pointer;">clear</button>
+            </div>
+            <div class="log-console" id="log-console">
+                <div class="log-entry"><span class="time">⏺</span> <span class="info">System ready.</span></div>
+            </div>
+        </div>
+
+        <div style="font-size:12px; color:#3d4a55; text-align:center; margin-top:16px;">
+            PeerJS Cloud · up to 50 concurrent peers
+        </div>
     </div>
-    <div id="password-section" class="password-box hidden">
-      <label>Enter broadcaster password:</label>
-      <input type="password" id="password-input" placeholder="Enter password">
-      <button id="btn-auth">🔑 Authorize</button>
-      <div id="auth-error" class="error"></div>
-    </div>
-  </div>
 
-  <!-- Status Panel -->
-  <div id="controls" class="card hidden">
-    <div id="status">Connecting...</div>
-    <div id="listener-count" class="hidden">👥 Listeners: 0</div>
-    <button id="btn-stop" class="danger hidden">⏹ Stop Streaming</button>
-    <audio id="remote-audio" controls autoplay style="display:none;"></audio>
-  </div>
+    <script>
+        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        //  CONFIGURATION
+        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        const ROOM_NAME = 'global-music-room';
+        const AUTH_PASSWORD = '667788';
+        const PEERJS_CONFIG = { host: '0.peerjs.com', port: 443, secure: true };
 
-  <script>
-    // ========== HARDCODED CONFIG ==========
-    const ROOM_NAME = "global-music-room";   // Fixed room – no one types this
-    const AUTH_PASSWORD = "667788";          // Broadcaster password
+        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        //  STATE
+        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        let peer = null;
+        let localStream = null;
+        let isBroadcaster = false;
+        let connections = {};
+        let listenerCall = null;
+        let isCleaningUp = false;
 
-    // ========== STATE ==========
-    let peer = null;
-    let localStream = null;
-    let isBroadcaster = false;
-    let connections = {};      // broadcaster side
-    let listenerPeer = null;   // listener side
+        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        //  DOM REFS
+        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        const $ = id => document.getElementById(id);
+        const btnBroadcast = $('btn-broadcast');
+        const btnListen = $('btn-listen');
+        const btnAuth = $('btn-auth');
+        const btnStop = $('btn-stop');
+        const btnClearLogs = $('btn-clear-logs');
+        const passwordBox = $('password-box');
+        const passwordInput = $('password-input');
+        const authError = $('auth-error');
+        const controlsPanel = $('controls-panel');
+        const indicator = $('indicator');
+        const statusText = $('status-text');
+        const listenerCountEl = $('listener-count');
+        const roomDisplay = $('room-display');
+        const remoteAudio = $('remote-audio');
+        const logConsole = $('log-console');
 
-    // ========== DOM REFS ==========
-    const btnBroadcast = document.getElementById('btn-broadcast');
-    const btnListen = document.getElementById('btn-listen');
-    const btnAuth = document.getElementById('btn-auth');
-    const btnStop = document.getElementById('btn-stop');
-    const passwordSection = document.getElementById('password-section');
-    const passwordInput = document.getElementById('password-input');
-    const authError = document.getElementById('auth-error');
-    const controls = document.getElementById('controls');
-    const statusEl = document.getElementById('status');
-    const listenerCount = document.getElementById('listener-count');
-    const remoteAudio = document.getElementById('remote-audio');
-
-    function setStatus(msg) { statusEl.textContent = msg; }
-
-    // ========== CLEANUP ==========
-    function cleanup() {
-      if (localStream) { localStream.getTracks().forEach(t => t.stop()); localStream = null; }
-      if (peer) { peer.destroy(); peer = null; }
-      connections = {};
-      listenerPeer = null;
-      remoteAudio.srcObject = null;
-      remoteAudio.style.display = 'none';
-      listenerCount.classList.add('hidden');
-      btnStop.classList.add('hidden');
-      controls.classList.add('hidden');
-      isBroadcaster = false;
-    }
-
-    // ========== SILENT DUMMY STREAM (for listeners) ==========
-    function createSilentStream() {
-      const ctx = new (window.AudioContext || window.webkitAudioContext)();
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      gain.gain.value = 0;
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-      osc.start();
-      const dest = ctx.createMediaStreamDestination();
-      gain.connect(dest);
-      return dest.stream;
-    }
-
-    // ========== BROADCASTER ==========
-    async function startBroadcaster() {
-      cleanup();
-      isBroadcaster = true;
-      controls.classList.remove('hidden');
-      btnStop.classList.remove('hidden');
-      listenerCount.classList.remove('hidden');
-      setStatus('🔴 Capturing screen audio...');
-
-      try {
-        localStream = await navigator.mediaDevices.getDisplayMedia({
-          audio: true,
-          video: true
-        });
-
-        // Use the hardcoded ROOM_NAME as the Peer ID
-        peer = new Peer(ROOM_NAME, { host: '0.peerjs.com', port: 443, secure: true });
-
-        peer.on('open', () => {
-          setStatus(`✅ Broadcasting live! Room: "${ROOM_NAME}"`);
-          listenerCount.textContent = '👥 Listeners: 0';
-        });
-
-        peer.on('call', (call) => {
-          call.answer(localStream);
-          connections[call.peer] = call;
-          updateListenerCount();
-          call.on('close', () => {
-            delete connections[call.peer];
-            updateListenerCount();
-          });
-        });
-
-        peer.on('error', (err) => {
-          if (err.type === 'unavailable-id') {
-            setStatus('❌ Someone else is already broadcasting in this room.');
-            cleanup();
-          } else {
-            setStatus('⚠️ Peer error: ' + err.message);
-          }
-        });
-
-        // Auto-stop if user closes the screen-share picker
-        localStream.getVideoTracks()[0].onended = () => {
-          setStatus('⏹ Screen capture stopped.');
-          stopStreaming();
-        };
-
-      } catch (err) {
-        setStatus('❌ Error: ' + err.message + ' (Select a tab to share)');
-        cleanup();
-      }
-    }
-
-    function updateListenerCount() {
-      const count = Object.keys(connections).length;
-      listenerCount.textContent = `👥 Listeners: ${count}`;
-    }
-
-    function stopStreaming() {
-      if (peer) peer.destroy();
-      if (localStream) { localStream.getTracks().forEach(t => t.stop()); localStream = null; }
-      connections = {};
-      isBroadcaster = false;
-      listenerCount.textContent = '👥 Listeners: 0';
-      setStatus('⏹ Stopped.');
-      btnStop.classList.add('hidden');
-      controls.classList.add('hidden');
-    }
-
-    // ========== LISTENER ==========
-    function startListener() {
-      cleanup();
-      controls.classList.remove('hidden');
-      setStatus('🔍 Looking for broadcaster...');
-
-      peer = new Peer({ host: '0.peerjs.com', port: 443, secure: true });
-      const silentStream = createSilentStream();
-
-      peer.on('open', () => {
-        setStatus(`📞 Connecting to broadcaster...`);
-        const call = peer.call(ROOM_NAME, silentStream);
-        listenerPeer = call;
-
-        call.on('stream', (remoteStream) => {
-          remoteAudio.srcObject = remoteStream;
-          remoteAudio.style.display = 'block';
-          setStatus('🎧 Listening live!');
-        });
-
-        call.on('error', (err) => {
-          setStatus('❌ Call failed: ' + err.message);
-          cleanup();
-        });
-
-        call.on('close', () => {
-          setStatus('⏹ Broadcaster disconnected.');
-          remoteAudio.style.display = 'none';
-          cleanup();
-        });
-      });
-
-      peer.on('error', (err) => {
-        if (err.type === 'peer-unavailable') {
-          setStatus('❌ No broadcaster active. Ask someone to start streaming.');
-        } else {
-          setStatus('⚠️ Peer error: ' + err.message);
+        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        //  LOGGING SYSTEM
+        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        function addLog(message, type = 'info') {
+            const entry = document.createElement('div');
+            entry.className = 'log-entry';
+            const time = new Date().toLocaleTimeString();
+            const icon = { info: 'ℹ️', success: '✅', warn: '⚠️', error: '❌' } [type] || '•';
+            entry.innerHTML = `<span class="time">${time}</span> <span class="${type}">${icon} ${message}</span>`;
+            logConsole.appendChild(entry);
+            logConsole.scrollTop = logConsole.scrollHeight;
+            if (type === 'error') setIndicator('error', message);
+            else if (type === 'success') setIndicator('online', message);
+            else setIndicator('busy', message);
         }
-        cleanup();
-      });
-    }
 
-    // ========== UI EVENT HANDLERS ==========
+        function setIndicator(state, msg) {
+            indicator.className = 'indicator';
+            if (state === 'online') indicator.classList.add('online');
+            else if (state === 'busy') indicator.classList.add('busy');
+            else if (state === 'error') indicator.classList.add('error');
+            statusText.textContent = msg;
+        }
 
-    // Show password field when "Start Streaming" is clicked
-    btnBroadcast.addEventListener('click', () => {
-      passwordSection.classList.remove('hidden');
-      authError.textContent = '';
-      passwordInput.value = '';
-      passwordInput.focus();
-    });
+        function clearLogs() {
+            logConsole.innerHTML = '';
+            addLog('Console cleared.', 'info');
+        }
+        btnClearLogs.addEventListener('click', clearLogs);
 
-    // Authorize button
-    btnAuth.addEventListener('click', () => {
-      const entered = passwordInput.value;
-      if (entered === AUTH_PASSWORD) {
-        passwordSection.classList.add('hidden');
-        authError.textContent = '';
-        startBroadcaster();
-      } else {
-        authError.textContent = '❌ Wrong password. Try again.';
-        passwordInput.value = '';
-        passwordInput.focus();
-      }
-    });
+        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        //  UI HELPERS
+        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        function showControls(show) {
+            controlsPanel.style.display = show ? 'block' : 'none';
+            if (!show) {
+                remoteAudio.classList.remove('show');
+                remoteAudio.pause();
+                remoteAudio.srcObject = null;
+            }
+        }
 
-    // Press Enter in password field triggers auth
-    passwordInput.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') btnAuth.click();
-    });
+        function updateListenerCount() {
+            const count = Object.keys(connections).length;
+            listenerCountEl.textContent = count;
+        }
 
-    // Listen button – no password needed
-    btnListen.addEventListener('click', () => {
-      passwordSection.classList.add('hidden');
-      authError.textContent = '';
-      startListener();
-    });
+        function resetUI() {
+            showControls(false);
+            setIndicator('busy', 'Idle');
+            listenerCountEl.textContent = '0';
+            passwordBox.classList.remove('show');
+            authError.classList.remove('show');
+            passwordInput.value = '';
+            btnBroadcast.disabled = false;
+            btnListen.disabled = false;
+            btnStop.style.display = 'none';
+            roomDisplay.textContent = ROOM_NAME;
+        }
 
-    // Stop button
-    btnStop.addEventListener('click', stopStreaming);
+        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        //  CLEANUP
+        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        function fullCleanup() {
+            if (isCleaningUp) return;
+            isCleaningUp = true;
+            addLog('Cleaning up resources...', 'info');
 
-    // Auto-cleanup on page unload
-    window.addEventListener('beforeunload', cleanup);
-  </script>
+            if (isBroadcaster) {
+                Object.values(connections).forEach(call => { try { call.close(); } catch (e) {} });
+                connections = {};
+            }
+            if (listenerCall) { try { listenerCall.close(); } catch (e) {} }
+            listenerCall = null;
+            if (peer) { try { peer.destroy(); } catch (e) {} }
+            peer = null;
+            if (localStream) {
+                localStream.getTracks().forEach(t => t.stop());
+                localStream = null;
+            }
+
+            isBroadcaster = false;
+            remoteAudio.classList.remove('show');
+            remoteAudio.srcObject = null;
+            updateListenerCount();
+            resetUI();
+            addLog('Cleanup complete.', 'success');
+            isCleaningUp = false;
+        }
+
+        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        //  BROADCASTER LOGIC (Captures System Audio)
+        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        async function startBroadcaster() {
+            fullCleanup();
+            addLog('🚀 Initializing broadcaster...', 'info');
+
+            // Detect device for better instructions
+            const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+
+            // 1. Check browser support
+            if (!navigator.mediaDevices || !navigator.mediaDevices.getDisplayMedia) {
+                addLog('❌ getDisplayMedia() not supported. Please use Chrome/Edge.', 'error');
+                setIndicator('error', 'Browser not compatible.');
+                return;
+            }
+
+            btnBroadcast.disabled = true;
+            btnListen.disabled = true;
+            showControls(true);
+
+            // Provide platform-specific instructions
+            if (isMobile) {
+                addLog('📱 Android detected. When the prompt appears:', 'warn');
+                addLog('  1. Select "Entire screen" or "Share screen".', 'warn');
+                addLog('  ⚠️ 2. CRUCIAL: Toggle ON the "Share audio" switch at the bottom.', 'warn');
+                addLog('  3. Start sharing. The YT Music audio will be captured.', 'warn');
+                setIndicator('busy', 'Waiting for screen selection...');
+            } else {
+                addLog('💻 Desktop detected. When the prompt appears:', 'warn');
+                addLog('  ⚠️ Select the YT Music tab (or screen) and CHECK "Share audio".', 'warn');
+                setIndicator('busy', 'Select a tab/screen to share...');
+            }
+
+            try {
+                // 2. Capture screen + system audio
+                localStream = await navigator.mediaDevices.getDisplayMedia({
+                    audio: true,
+                    video: true
+                });
+
+                // 3. Verify audio track exists
+                const audioTracks = localStream.getAudioTracks();
+                if (audioTracks.length === 0) {
+                    throw new Error('No audio track captured. Did you enable "Share audio" in the picker?');
+                }
+                addLog(`✅ Captured ${audioTracks.length} audio track(s). System audio is being routed.`, 'success');
+
+                // 4. Connect to PeerJS Cloud
+                addLog(`🔗 Connecting to PeerJS (room: "${ROOM_NAME}")...`, 'info');
+                peer = new Peer(ROOM_NAME, PEERJS_CONFIG);
+
+                peer.on('open', (id) => {
+                    isBroadcaster = true;
+                    addLog(`✅ Peer ID established: "${id}"`, 'success');
+                    setIndicator('online', '🎤 Broadcasting live! Your device audio is streaming.');
+                    btnStop.style.display = 'flex';
+                    updateListenerCount();
+                });
+
+                // 5. Handle incoming listener calls
+                peer.on('call', (call) => {
+                    addLog(`📞 New listener connecting (${call.peer})...`, 'info');
+                    try {
+                        call.answer(localStream);
+                        connections[call.peer] = call;
+                        updateListenerCount();
+                        addLog(`✅ Listener connected. Total: ${Object.keys(connections).length}`, 'success');
+                        call.on('close', () => {
+                            addLog(`👋 Listener ${call.peer} disconnected.`, 'warn');
+                            delete connections[call.peer];
+                            updateListenerCount();
+                        });
+                    } catch (err) {
+                        addLog(`❌ Failed to answer call: ${err.message}`, 'error');
+                    }
+                });
+
+                // 6. Error handling
+                peer.on('error', (err) => {
+                    if (err.type === 'unavailable-id') {
+                        addLog(`❌ Room "${ROOM_NAME}" already taken by another broadcaster.`, 'error');
+                        setIndicator('error', 'Someone else is broadcasting.');
+                        fullCleanup();
+                    } else {
+                        addLog(`⚠️ PeerJS error: ${err.message} (${err.type})`, 'error');
+                    }
+                });
+
+                // 7. Auto-stop if user closes the share picker
+                const videoTrack = localStream.getVideoTracks()[0];
+                if (videoTrack) {
+                    videoTrack.onended = () => {
+                        addLog('⏹ Screen capture was stopped by the user.', 'warn');
+                        setIndicator('error', 'Capture stopped.');
+                        fullCleanup();
+                    };
+                }
+
+            } catch (err) {
+                addLog(`❌ Broadcast failed: ${err.message}`, 'error');
+                setIndicator('error', `Error: ${err.message}`);
+                fullCleanup();
+            }
+        }
+
+        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        //  LISTENER LOGIC
+        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        function startListener() {
+            fullCleanup();
+            addLog('🎧 Initializing listener...', 'info');
+
+            btnBroadcast.disabled = true;
+            btnListen.disabled = true;
+            showControls(true);
+            setIndicator('busy', 'Connecting to broadcaster...');
+
+            // Silent dummy stream for the outgoing call
+            const ctx = new(window.AudioContext || window.webkitAudioContext)();
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            gain.gain.value = 0;
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            osc.start();
+            const dest = ctx.createMediaStreamDestination();
+            gain.connect(dest);
+            const silentStream = dest.stream;
+
+            peer = new Peer(PEERJS_CONFIG);
+
+            peer.on('open', (id) => {
+                addLog(`✅ Listener peer ready (${id}). Calling broadcaster...`, 'success');
+                setIndicator('busy', 'Calling broadcaster...');
+
+                const call = peer.call(ROOM_NAME, silentStream);
+                listenerCall = call;
+
+                call.on('stream', (remoteStream) => {
+                    addLog('🎵 Audio stream received! Playing now.', 'success');
+                    setIndicator('online', '🎧 Listening live!');
+                    remoteAudio.srcObject = remoteStream;
+                    remoteAudio.classList.add('show');
+                    remoteAudio.play().catch(e => addLog(`⚠️ Autoplay blocked: ${e.message}`, 'warn'));
+                });
+
+                call.on('error', (err) => {
+                    addLog(`❌ Call error: ${err.message}`, 'error');
+                    setIndicator('error', 'Call failed.');
+                    fullCleanup();
+                });
+
+                call.on('close', () => {
+                    addLog('⏹ Broadcaster ended the stream.', 'warn');
+                    setIndicator('error', 'Disconnected.');
+                    fullCleanup();
+                });
+            });
+
+            peer.on('error', (err) => {
+                if (err.type === 'peer-unavailable') {
+                    addLog(`❌ Broadcaster not found. Is anyone streaming in "${ROOM_NAME}"?`, 'error');
+                    setIndicator('error', 'No active broadcaster.');
+                } else {
+                    addLog(`⚠️ Peer error: ${err.message}`, 'error');
+                }
+                fullCleanup();
+            });
+        }
+
+        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        //  EVENT BINDINGS
+        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+        btnBroadcast.addEventListener('click', () => {
+            passwordBox.classList.add('show');
+            authError.classList.remove('show');
+            passwordInput.value = '';
+            passwordInput.focus();
+            btnBroadcast.disabled = true;
+        });
+
+        btnAuth.addEventListener('click', () => {
+            const entered = passwordInput.value;
+            if (entered === AUTH_PASSWORD) {
+                authError.classList.remove('show');
+                passwordBox.classList.remove('show');
+                btnBroadcast.disabled = false;
+                startBroadcaster();
+            } else {
+                authError.classList.add('show');
+                passwordInput.value = '';
+                passwordInput.focus();
+                addLog('❌ Failed auth attempt (wrong password).', 'error');
+            }
+        });
+
+        passwordInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') btnAuth.click();
+        });
+
+        btnListen.addEventListener('click', () => {
+            passwordBox.classList.remove('show');
+            authError.classList.remove('show');
+            startListener();
+        });
+
+        btnStop.addEventListener('click', () => {
+            addLog('⏹ Manual stop requested.', 'warn');
+            fullCleanup();
+        });
+
+        window.addEventListener('beforeunload', () => {
+            if (peer) { try { peer.destroy(); } catch (e) {} }
+            if (localStream) { localStream.getTracks().forEach(t => t.stop()); }
+        });
+
+        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        //  INIT
+        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        resetUI();
+        roomDisplay.textContent = ROOM_NAME;
+        addLog(`🟢 Application ready. Room: "${ROOM_NAME}"`, 'info');
+        addLog(`ℹ️ Broadcaster password: "${AUTH_PASSWORD}"`, 'info');
+        addLog(`📱 Works on Mobile & Desktop. Captures system audio (YT Music app, etc.).`, 'success');
+    </script>
 </body>
 </html>
