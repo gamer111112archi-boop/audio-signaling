@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>🎵 Live Audio Share</title>
+  <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+  <style>
+    * { box-sizing: border-box; }
+    body { font-family: system-ui, sans-serif; max-width: 480px; margin: 40px auto; padding: 20px; background: #0f0f0f; color: #eee; }
+    .card { background: #1e1e1e; padding: 24px; border-radius: 16px; margin-bottom: 20px; border: 1px solid #333; }
+    h1 { margin-top: 0; font-size: 24px; text-align: center; }
+    .hidden { display: none; }
+    input, button { width: 100%; padding: 14px; margin: 8px 0; border-radius: 10px; border: none; font-size: 16px; }
+    input { background: #2a2a2a; color: #fff; }
+    button { background: #1a73e8; color: white; font-weight: bold; cursor: pointer; transition: 0.2s; }
+    button:active { transform: scale(0.97); }
+    button.danger { background: #d32f2f; }
+    button.outline { background: transparent; border: 1px solid #555; }
+    .flex { display: flex; gap: 10px; }
+    .flex button { width: 50%; }
+    #status { padding: 12px; background: #2a2a2a; border-radius: 10px; margin-top: 12px; font-size: 14px; word-break: break-all; }
+    #listener-count { font-size: 14px; color: #8ab4f8; margin-top: 8px; }
+    audio { width: 100%; margin-top: 12px; border-radius: 10px; }
+    .password-box { background: #252525; padding: 16px; border-radius: 12px; margin-top: 12px; border: 1px solid #444; }
+    .password-box input { background: #333; }
+    .error { color: #ff6b6b; font-size: 14px; margin-top: 8px; }
+  </style>
+</head>
+<body>
+
+  <h1>🎵 Live Audio Share</h1>
+
+  <!-- Main Buttons -->
+  <div class="card" id="mode-select">
+    <div class="flex">
+      <button id="btn-broadcast">🎤 Start Streaming</button>
+      <button id="btn-listen" class="outline">🎧 Listen</button>
+    </div>
+    <div id="password-section" class="password-box hidden">
+      <label>Enter broadcaster password:</label>
+      <input type="password" id="password-input" placeholder="Enter password">
+      <button id="btn-auth">🔑 Authorize</button>
+      <div id="auth-error" class="error"></div>
+    </div>
+  </div>
+
+  <!-- Status Panel -->
+  <div id="controls" class="card hidden">
+    <div id="status">Connecting...</div>
+    <div id="listener-count" class="hidden">👥 Listeners: 0</div>
+    <button id="btn-stop" class="danger hidden">⏹ Stop Streaming</button>
+    <audio id="remote-audio" controls autoplay style="display:none;"></audio>
+  </div>
+
+  <script>
+    // ========== HARDCODED CONFIG ==========
+    const ROOM_NAME = "global-music-room";   // Fixed room – no one types this
+    const AUTH_PASSWORD = "667788";          // Broadcaster password
+
+    // ========== STATE ==========
+    let peer = null;
+    let localStream = null;
+    let isBroadcaster = false;
+    let connections = {};      // broadcaster side
+    let listenerPeer = null;   // listener side
+
+    // ========== DOM REFS ==========
+    const btnBroadcast = document.getElementById('btn-broadcast');
+    const btnListen = document.getElementById('btn-listen');
+    const btnAuth = document.getElementById('btn-auth');
+    const btnStop = document.getElementById('btn-stop');
+    const passwordSection = document.getElementById('password-section');
+    const passwordInput = document.getElementById('password-input');
+    const authError = document.getElementById('auth-error');
+    const controls = document.getElementById('controls');
+    const statusEl = document.getElementById('status');
+    const listenerCount = document.getElementById('listener-count');
+    const remoteAudio = document.getElementById('remote-audio');
+
+    function setStatus(msg) { statusEl.textContent = msg; }
+
+    // ========== CLEANUP ==========
+    function cleanup() {
+      if (localStream) { localStream.getTracks().forEach(t => t.stop()); localStream = null; }
+      if (peer) { peer.destroy(); peer = null; }
+      connections = {};
+      listenerPeer = null;
+      remoteAudio.srcObject = null;
+      remoteAudio.style.display = 'none';
+      listenerCount.classList.add('hidden');
+      btnStop.classList.add('hidden');
+      controls.classList.add('hidden');
+      isBroadcaster = false;
+    }
+
+    // ========== SILENT DUMMY STREAM (for listeners) ==========
+    function createSilentStream() {
+      const ctx = new (window.AudioContext || window.webkitAudioContext)();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      gain.gain.value = 0;
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start();
+      const dest = ctx.createMediaStreamDestination();
+      gain.connect(dest);
+      return dest.stream;
+    }
+
+    // ========== BROADCASTER ==========
+    async function startBroadcaster() {
+      cleanup();
+      isBroadcaster = true;
+      controls.classList.remove('hidden');
+      btnStop.classList.remove('hidden');
+      listenerCount.classList.remove('hidden');
+      setStatus('🔴 Capturing screen audio...');
+
+      try {
+        localStream = await navigator.mediaDevices.getDisplayMedia({
+          audio: true,
+          video: true
+        });
+
+        // Use the hardcoded ROOM_NAME as the Peer ID
+        peer = new Peer(ROOM_NAME, { host: '0.peerjs.com', port: 443, secure: true });
+
+        peer.on('open', () => {
+          setStatus(`✅ Broadcasting live! Room: "${ROOM_NAME}"`);
+          listenerCount.textContent = '👥 Listeners: 0';
+        });
+
+        peer.on('call', (call) => {
+          call.answer(localStream);
+          connections[call.peer] = call;
+          updateListenerCount();
+          call.on('close', () => {
+            delete connections[call.peer];
+            updateListenerCount();
+          });
+        });
+
+        peer.on('error', (err) => {
+          if (err.type === 'unavailable-id') {
+            setStatus('❌ Someone else is already broadcasting in this room.');
+            cleanup();
+          } else {
+            setStatus('⚠️ Peer error: ' + err.message);
+          }
+        });
+
+        // Auto-stop if user closes the screen-share picker
+        localStream.getVideoTracks()[0].onended = () => {
+          setStatus('⏹ Screen capture stopped.');
+          stopStreaming();
+        };
+
+      } catch (err) {
+        setStatus('❌ Error: ' + err.message + ' (Select a tab to share)');
+        cleanup();
+      }
+    }
+
+    function updateListenerCount() {
+      const count = Object.keys(connections).length;
+      listenerCount.textContent = `👥 Listeners: ${count}`;
+    }
+
+    function stopStreaming() {
+      if (peer) peer.destroy();
+      if (localStream) { localStream.getTracks().forEach(t => t.stop()); localStream = null; }
+      connections = {};
+      isBroadcaster = false;
+      listenerCount.textContent = '👥 Listeners: 0';
+      setStatus('⏹ Stopped.');
+      btnStop.classList.add('hidden');
+      controls.classList.add('hidden');
+    }
+
+    // ========== LISTENER ==========
+    function startListener() {
+      cleanup();
+      controls.classList.remove('hidden');
+      setStatus('🔍 Looking for broadcaster...');
+
+      peer = new Peer({ host: '0.peerjs.com', port: 443, secure: true });
+      const silentStream = createSilentStream();
+
+      peer.on('open', () => {
+        setStatus(`📞 Connecting to broadcaster...`);
+        const call = peer.call(ROOM_NAME, silentStream);
+        listenerPeer = call;
+
+        call.on('stream', (remoteStream) => {
+          remoteAudio.srcObject = remoteStream;
+          remoteAudio.style.display = 'block';
+          setStatus('🎧 Listening live!');
+        });
+
+        call.on('error', (err) => {
+          setStatus('❌ Call failed: ' + err.message);
+          cleanup();
+        });
+
+        call.on('close', () => {
+          setStatus('⏹ Broadcaster disconnected.');
+          remoteAudio.style.display = 'none';
+          cleanup();
+        });
+      });
+
+      peer.on('error', (err) => {
+        if (err.type === 'peer-unavailable') {
+          setStatus('❌ No broadcaster active. Ask someone to start streaming.');
+        } else {
+          setStatus('⚠️ Peer error: ' + err.message);
+        }
+        cleanup();
+      });
+    }
+
+    // ========== UI EVENT HANDLERS ==========
+
+    // Show password field when "Start Streaming" is clicked
+    btnBroadcast.addEventListener('click', () => {
+      passwordSection.classList.remove('hidden');
+      authError.textContent = '';
+      passwordInput.value = '';
+      passwordInput.focus();
+    });
+
+    // Authorize button
+    btnAuth.addEventListener('click', () => {
+      const entered = passwordInput.value;
+      if (entered === AUTH_PASSWORD) {
+        passwordSection.classList.add('hidden');
+        authError.textContent = '';
+        startBroadcaster();
+      } else {
+        authError.textContent = '❌ Wrong password. Try again.';
+        passwordInput.value = '';
+        passwordInput.focus();
+      }
+    });
+
+    // Press Enter in password field triggers auth
+    passwordInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') btnAuth.click();
+    });
+
+    // Listen button – no password needed
+    btnListen.addEventListener('click', () => {
+      passwordSection.classList.add('hidden');
+      authError.textContent = '';
+      startListener();
+    });
+
+    // Stop button
+    btnStop.addEventListener('click', stopStreaming);
+
+    // Auto-cleanup on page unload
+    window.addEventListener('beforeunload', cleanup);
+  </script>
+</body>
+</html>
