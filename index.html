@@ -7,7 +7,6 @@
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js">
     </script>
     <style>
-        /* ─── Reset & Base ─── */
         * {
             box-sizing: border-box;
             margin: 0;
@@ -339,21 +338,36 @@
             margin-top: 10px;
             cursor: pointer;
         }
+        .browser-check {
+            background: #1a1a2e;
+            border-left: 4px solid #f39c12;
+            padding: 10px 14px;
+            border-radius: 8px;
+            margin-bottom: 12px;
+            font-size: 13px;
+        }
+        .browser-check .highlight-text {
+            color: #f1c40f;
+            font-weight: 600;
+        }
     </style>
 </head>
 <body>
 
     <div class="container" id="app">
         <header>
-            <h1>🎵 Studio Stream <small>v2.2 · Fix</small></h1>
+            <h1>🎵 Studio Stream <small>v2.3 · Cloudflare</small></h1>
             <div class="subtitle">Captures system audio (YT Music, Spotify) · Zero servers</div>
         </header>
 
-        <!-- SECURITY ERROR BANNER -->
         <div class="error-banner" id="https-warning">
             <strong>🔒 HTTPS Required</strong>
             <p>Your browser is blocking screen capture because this page is not served over <code>https://</code> or <code>localhost</code>.</p>
             <p><strong>Fix:</strong> Use <a href="https://www.npmjs.com/package/serve" style="color:#2d9cdb;">`npx serve`</a>, <a href="https://marketplace.visualstudio.com/items?itemName=ritwickdey.LiveServer" style="color:#2d9cdb;">VS Code Live Server</a>, or host on <a href="https://pages.github.com/" style="color:#2d9cdb;">GitHub Pages</a>.</p>
+        </div>
+
+        <div class="browser-check" id="browser-check">
+            <span id="browser-msg">🔍 Detecting your browser...</span>
         </div>
 
         <div class="card highlight" id="action-card">
@@ -421,7 +435,6 @@
         let listenerCall = null;
         let isCleaningUp = false;
 
-        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
         const $ = id => document.getElementById(id);
         const btnBroadcast = $('btn-broadcast');
         const btnListen = $('btn-listen');
@@ -440,6 +453,69 @@
         const remoteAudio = $('remote-audio');
         const logConsole = $('log-console');
         const httpsWarning = $('https-warning');
+        const browserCheck = $('browser-check');
+        const browserMsg = $('browser-msg');
+
+        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        //  BROWSER DETECTION
+        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        function detectBrowser() {
+            const ua = navigator.userAgent;
+            let isChrome = false;
+            let isAndroid = /Android/i.test(ua);
+            let browserName = 'Unknown';
+
+            if (/Chrome/i.test(ua) && !/Edg/i.test(ua) && !/OPR/i.test(ua)) {
+                browserName = 'Google Chrome';
+                isChrome = true;
+            } else if (/SamsungBrowser/i.test(ua)) {
+                browserName = 'Samsung Internet';
+                isChrome = false;
+            } else if (/Firefox/i.test(ua)) {
+                browserName = 'Firefox';
+                isChrome = false;
+            } else if (/Edg/i.test(ua)) {
+                browserName = 'Edge';
+                isChrome = true;
+            } else if (/OPR|Opera/i.test(ua)) {
+                browserName = 'Opera';
+                isChrome = false;
+            } else if (/CriOS/i.test(ua)) {
+                browserName = 'Chrome (iOS)';
+                isChrome = true;
+            } else {
+                browserName = 'WebView or Unknown';
+                isChrome = false;
+            }
+
+            const hasSupport = !!(navigator.mediaDevices && navigator.mediaDevices.getDisplayMedia);
+
+            let msg = `📱 Browser: <span class="highlight-text">${browserName}</span> (Android: ${isAndroid})`;
+
+            if (!isChrome && !/Edge/i.test(ua)) {
+                msg +=
+                    ` — ⚠️ <span style="color:#ff6b6b;">Not supported. Please <strong>open this link in Google Chrome</strong>.</span>`;
+                browserMsg.innerHTML = msg;
+                addLog(`⚠️ Unsupported browser: ${browserName}. Use Chrome.`, 'error');
+                btnBroadcast.disabled = true;
+                return false;
+            }
+
+            if (!hasSupport) {
+                msg +=
+                    ` — ⚠️ <span style="color:#ff6b6b;">getDisplayMedia missing. Ensure you are on HTTPS (Cloudflare Pages gives this!).</span>`;
+                browserMsg.innerHTML = msg;
+                addLog(`⚠️ Browser ${browserName} lacks getDisplayMedia. Check HTTPS.`, 'error');
+                btnBroadcast.disabled = true;
+                return false;
+            }
+
+            msg += ` — ✅ <span style="color:#4cdb7b;">Supported!</span>`;
+            browserMsg.innerHTML = msg;
+            addLog(`✅ Browser: ${browserName} detected. getDisplayMedia available.`, 'success');
+            btnBroadcast.disabled = false;
+            return true;
+        }
 
         // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
         //  LOGGING
@@ -494,11 +570,10 @@
             passwordBox.classList.remove('show');
             authError.classList.remove('show');
             passwordInput.value = '';
-            btnBroadcast.disabled = false;
-            btnListen.disabled = false;
             btnStop.style.display = 'none';
             btnRetry.style.display = 'none';
             roomDisplay.textContent = ROOM_NAME;
+            detectBrowser();
         }
 
         function enableRetry() {
@@ -542,26 +617,25 @@
         //  BROADCASTER
         // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
         async function startBroadcaster() {
-            // --- 1. Check HTTPS ---
             if (!window.isSecureContext) {
                 httpsWarning.classList.add('show');
-                addLog('❌ BLOCKED: Page must be served over HTTPS or localhost.', 'error');
-                setIndicator('error', 'HTTPS required. See warning above.');
+                addLog('❌ BLOCKED: HTTPS required.', 'error');
+                setIndicator('error', 'HTTPS required.');
                 return;
             } else {
                 httpsWarning.classList.remove('show');
+            }
+
+            const supported = detectBrowser();
+            if (!supported) {
+                addLog('❌ Browser not supported. Please use Chrome.', 'error');
+                return;
             }
 
             fullCleanup();
             addLog('🚀 Initializing broadcaster...', 'info');
 
             const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
-
-            if (!navigator.mediaDevices || !navigator.mediaDevices.getDisplayMedia) {
-                addLog('❌ getDisplayMedia() not supported. Use Chrome/Edge.', 'error');
-                setIndicator('error', 'Browser not compatible.');
-                return;
-            }
 
             btnBroadcast.disabled = true;
             btnListen.disabled = true;
@@ -577,7 +651,6 @@
             }
 
             try {
-                // --- 2. Capture ---
                 localStream = await navigator.mediaDevices.getDisplayMedia({
                     audio: true,
                     video: true
@@ -589,7 +662,6 @@
                 }
                 addLog(`✅ Captured ${audioTracks.length} audio track(s).`, 'success');
 
-                // --- 3. PeerJS ---
                 addLog(`🔗 Connecting to PeerJS (room: "${ROOM_NAME}")...`, 'info');
                 peer = new Peer(ROOM_NAME, PEERJS_CONFIG);
 
@@ -640,7 +712,6 @@
                 }
 
             } catch (err) {
-                // --- 4. Handle errors gracefully ---
                 let friendlyMsg = err.message;
                 if (err.name === 'NotAllowedError' || err.name === 'SecurityError') {
                     friendlyMsg = 'Permission denied or insecure context. Ensure HTTPS.';
@@ -649,10 +720,7 @@
                 }
                 addLog(`❌ Broadcast failed: ${friendlyMsg}`, 'error');
                 setIndicator('error', friendlyMsg);
-                // Keep controls visible so user sees the error
-                // Re-enable the retry button
                 enableRetry();
-                // Clean up partial resources
                 if (localStream) {
                     localStream.getTracks().forEach(t => t.stop());
                     localStream = null;
@@ -670,7 +738,7 @@
         function startListener() {
             if (!window.isSecureContext) {
                 httpsWarning.classList.add('show');
-                addLog('❌ BLOCKED: HTTPS required for WebRTC.', 'error');
+                addLog('❌ BLOCKED: HTTPS required.', 'error');
                 return;
             } else {
                 httpsWarning.classList.remove('show');
@@ -803,8 +871,10 @@
             httpsWarning.classList.add('show');
             addLog('⚠️ WARNING: Page is not secure (HTTP). Screen capture will be blocked.', 'error');
         } else {
-            addLog('✅ Secure context (HTTPS/localhost) detected.', 'success');
+            addLog('✅ Secure context (HTTPS) detected. Cloudflare Pages is secure!', 'success');
         }
+
+        detectBrowser();
     </script>
 </body>
 </html>
